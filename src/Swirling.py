@@ -5,7 +5,7 @@
 Ceci est un script temporaire.
 """
 import warnings
-import graphviz
+# import graphviz
 import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
@@ -544,6 +544,8 @@ class Scene(Anchor):
         
         fig.suptitle(self.name)
         fig.tight_layout(pad=1.2)
+
+        plt.show()
         
     def render(self, ax):
         self.draw_elements(ax, self, self.childs, verbose=False)
