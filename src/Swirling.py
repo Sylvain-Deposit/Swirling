@@ -5,7 +5,7 @@
 Ceci est un script temporaire.
 """
 import warnings
-# import graphviz
+import graphviz
 import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
@@ -563,10 +563,10 @@ if __name__ == '__main__':
     Point(color='red', size=50).at(s)
     # p.at(root)
 
-    scene > root > s
+    scene > s
     
     
-   # root > s
+    # root > s
     # root.drawables = [s]
     # scene.rotate_by(90)
     
