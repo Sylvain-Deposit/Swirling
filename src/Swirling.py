@@ -225,14 +225,16 @@ class Drawable(object):
     def at(self, anchor):
         
         if isinstance(anchor, Anchor):
-            self.x = 0
-            self.y = 0
+            self.x -= np.mean(self.x)
+            self.y -= np.mean(self.y)
             self.parent = anchor
             anchor.drawables.append(self)
             
+            
+            
         else:
             raise ValueError(f'Only Anchors are accepted, got {type(anchor)}')
-            
+   
     def shift_by(self, a, b):
         self.x += a
         self.y += b
@@ -309,10 +311,31 @@ class Line(Anchor, Drawable):
                 
     def __repr__(self):
         return f'Line made of {len(self.x)} points.'
-    
+#%%    
 class Scatter(Drawable):
-    def __init__(self):
-        pass    
+    instances = 0
+    def __init__(self,
+                 xs, ys,
+                 size = 10,
+                 name = None,
+                 color = 'black',
+                
+                 alpha = 1):
+
+        if name is None:
+            name = f'Scatter-{Scatter.instances}'
+        
+        color = self._broadcast_values(color, len(xs))
+        alpha = self._broadcast_values(alpha, len(xs))
+        size = self._broadcast_values(size, len(xs))
+        
+        Drawable.__init__(self, xs, ys, color = color, size = size, alpha = alpha)
+            
+        Scatter.instances += 1
+        
+        
+        
+        
 #%% Anchors
 class Anchors(Anchor):
     instances = 0
@@ -344,7 +367,7 @@ class Anchors(Anchor):
         return f'Scatter {self.name} with {len(self.childs)} {self.element} elements.'
     
     
-        
+#%%    
 class Polygon(Anchor, Drawable):
     instances = 0
     
@@ -444,27 +467,23 @@ class Scene(Anchor):
         
         dot.render(name)
        
-    def _draw_point(self, ax, point, **kwargs):
+    def _draw_point(self, ax, parent, point, **kwargs):
         
-        ax.scatter(point.x + point.parent.x, 
-                   point.y + point.parent.y, 
+        ax.scatter(point.x + parent.x, 
+                   point.y + parent.y, 
                    color = point.color, 
                    s = point.size, 
                    alpha = point.alpha)
         
-    def _draw_scatter(self, ax, scatter, **kwargs):
+    def _draw_scatter(self, ax, parent, scatter, **kwargs):
         print('drawing scatter')
         
-        ax.scatter(scatter.x + scatter.parent.x, 
-                   scatter.y + scatter.parent.y, 
+        ax.scatter(scatter.x + parent.x, 
+                   scatter.y + parent.y, 
                    color = scatter.color, 
                    s = scatter.size, 
                    alpha = scatter.alpha)
         
-        
-        
-        
-        pass
         
     def _draw_line(self, ax, line):
         ax.plot(line.xs, 
@@ -487,7 +506,7 @@ class Scene(Anchor):
         
     def _draw_verbose(self, ax, parent, child):
 
-        if child.is_drawable == False:
+        if isinstance(child, Anchor):
             ax.scatter(child.x, child.y, color='black', marker='+', s=100)
             
         ax.arrow(parent.x,
@@ -503,23 +522,22 @@ class Scene(Anchor):
         
         ax.text(child.x, child.y, child.name, fontsize=10)
         
-    def _draw_drawables(self, ax, drawable_list):
+    def _draw_drawables(self, ax, parent, drawable_list):
 
         for d in drawable_list:
             
             if isinstance(d, Point):
-                self._draw_point(ax, d)
+                self._draw_point(ax, parent, d)
                 
             if isinstance(d, Scatter):
-                self._draw_scatter(ax, d)
+                self._draw_scatter(ax, parent, d)
                 
    
     def draw_elements(self, ax, parent, childs, verbose=False):
         if parent.drawables:
     
-                self._draw_drawables(ax, parent.drawables)
-                
-            
+                self._draw_drawables(ax, parent, parent.drawables)
+
         if childs:
             for child in childs:
                                 
@@ -552,21 +570,28 @@ class Scene(Anchor):
 
 #%% Main
 if __name__ == '__main__':
-    x, y = Parametric(n=4).sunflower(alpha=3)
-    x *= 3
-    y *= 3
+    x, y = Parametric(n=30).sunflower(alpha=1)
+    
     scene = Scene()
     
-    root = Anchor(1, 1)
-    s = Anchors(x, y)
+    root = Anchor(1, 0.5)
+    root2 = Anchor(2, 2)
+    
+    scene.childs = [root]
+    root.childs = [root2]
+    
+    
+    Scatter(x, y, color=['black', 'red'], size=20)
+    root.drawables = [Scatter(x, y, color=['black', 'red'], size=20)]
         
-    Point(color='red', size=50).at(s)
+    # Point(color='red', size=50).at(s)
     # p.at(root)
 
-    scene > s
+    #♣ root > s
     
     
-    # root > s
+    
+    
     # root.drawables = [s]
     # scene.rotate_by(90)
     
