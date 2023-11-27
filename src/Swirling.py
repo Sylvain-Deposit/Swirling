@@ -567,22 +567,27 @@ class Scene(Anchor):
 
 #%% Main
 if __name__ == '__main__':
-    x, y = Parametric(n=30).sunflower(alpha=1)
-    
+    x, y = Parametric(n=60).sunflower(alpha=3)
+    x *= 3
+    y *= 3
+    colors = Chatoyant.ColorMap().from_matplotlib('viridis', n=60).to_float_list()
     scene = Scene()
     
-    anchors = Anchors(*Circular(n=4).uniform())
+    anchors = Anchors(x, y)
     scene > anchors
     anchors.rotate_by(45)
     
-    for a in anchors.childs:
-        p = Polygon(4, linewidth=0.5, alpha = 0.5)
+    for a, c in zip(anchors.childs, colors):
+        p = Polygon(4, linewidth=0, alpha = 0.8, size=0.4, facecolor=c)
         p.rotate_by(45)
         a.drawables = [p]
         p.parent = a
         
     
-    scene.show_hierarchy(verbose = True)
+        
+    
+    # scene.show_hierarchy(verbose = True)
+    scene.quick_display(verbose=False)
     
     
 
