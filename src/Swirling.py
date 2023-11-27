@@ -229,9 +229,7 @@ class Drawable(object):
             self.y -= np.mean(self.y)
             self.parent = anchor
             anchor.drawables.append(self)
-            
-            
-            
+         
         else:
             raise ValueError(f'Only Anchors are accepted, got {type(anchor)}')
    
@@ -284,33 +282,6 @@ class Point(Drawable):
             
     
             
-        
-#%%    
-class Line(Anchor, Drawable):
-    instances = 0
-    
-    def __init__(self,
-                 xs, ys,
-                 parent = None,
-                 name = None,
-                 color = 'black',
-                 linewidth = 5,
-                 alpha = 1
-                ):
-    
-        
-        # Need unique names for the graph display
-        if name is None:
-            name = f'Point-{Line.instances}'
-            
-        Anchor.__init__(self, xs, ys, name = name, childs = [])
-        Drawable.__init__(self, color = color, linewidth = linewidth, alpha = alpha)
-            
-        Line.instances += 1
-        self.is_drawable = True
-                
-    def __repr__(self):
-        return f'Line made of {len(self.x)} points.'
 #%%    
 class Scatter(Drawable):
     instances = 0
@@ -351,11 +322,9 @@ class Anchors(Anchor):
         
         # Need unique names for the graph display
         if name is None:
-            name = f'Anchor-{Anchors.instances}'
+            name = f'Group of Anchors-{Anchors.instances}'
         Anchors.instances += 1
-            
-        
-        
+
         Anchor.__init__(self, np.mean(xs), np.mean (ys), name = name, childs = [], drawables = [])
 
         for x, y in zip(xs, ys):
@@ -364,11 +333,11 @@ class Anchors(Anchor):
    
             
     def __repr__(self):
-        return f'Scatter {self.name} with {len(self.childs)} {self.element} elements.'
+        return f'Group {self.name} with {len(self.childs)} anchors.'
     
     
 #%%    
-class Polygon(Anchor, Drawable):
+class Polygon(Drawable):
     instances = 0
     
     def __init__(self, n, size=1,
@@ -378,15 +347,17 @@ class Polygon(Anchor, Drawable):
                  ys = None,
                  parent = None,
                  name = None,
-                 childs = [],
                  facecolor = 'red',
                  linecolor = 'black',
                  linewidth = 3,
                  alpha = 1,
-                 is_drawable=True):
+                 fill = True
+                 ):
         
         if (polygon_type == 'regular') & (n is not None):
             xs, ys = Circular(n).uniform()
+            xs *= size
+            ys *= size
         
         else:
             if (xs is None) | (ys is None):
@@ -394,27 +365,16 @@ class Polygon(Anchor, Drawable):
 
         if name is None:
             name = f'Polygon-{Polygon.instances}'
-            
-        if isinstance(parent, Anchor):
-            Anchor.__init__(self, parent.x, parent.y, name = name, childs = childs)
-            parent.childs.append(self)
-            
-        else:
-            Anchor.__init__(self, np.mean(xs), np.mean (ys), name = name, childs = childs)
         
-        Drawable.__init__(self, facecolor=facecolor, linecolor=linecolor, linewidth=linewidth, alpha = alpha, is_drawable=is_drawable)
-        
-        for x, y in zip(xs, ys):
-            
-            self.childs.append(Anchor(x, y, childs=[]))
-            
-        self.scale(size)
-        
+        Drawable.__init__(self, x = xs, y = ys, 
+                          facecolor = facecolor, 
+                          linecolor = linecolor, 
+                          linewidth = linewidth, 
+                          alpha = alpha,
+                          fill = fill)
+                  
         Polygon.instances += 1
         
-        
-    def test(self):
-        return 'test'
         
         
    
@@ -476,24 +436,17 @@ class Scene(Anchor):
                    alpha = point.alpha)
         
     def _draw_scatter(self, ax, parent, scatter, **kwargs):
-        print('drawing scatter')
-        
+            
         ax.scatter(scatter.x + parent.x, 
                    scatter.y + parent.y, 
                    color = scatter.color, 
                    s = scatter.size, 
                    alpha = scatter.alpha)
         
+                
+    def _draw_polygon(self, ax, parent, poly):
+        xy = [[parent.x + x, parent.y + y] for x, y in zip(poly.x, poly.y)]
         
-    def _draw_line(self, ax, line):
-        ax.plot(line.xs, 
-                line.ys, 
-                color = line.color, 
-                linewidth = line.linewidth, 
-                alpha = line.alpha)
-        
-    def _draw_polygon(self, ax, poly):
-        xy = [[c.x, c.y] for c in poly.childs]
         poly = MatplotPatches.Polygon(xy,
                                       facecolor = poly.facecolor,
                                       edgecolor = poly.linecolor, # Matplotlib constantly swings between linecolor and edgecolor :(
@@ -504,11 +457,7 @@ class Scene(Anchor):
         ax.add_patch(poly)
         
         
-    def _draw_verbose(self, ax, parent, child):
-
-        if isinstance(child, Anchor):
-            ax.scatter(child.x, child.y, color='black', marker='+', s=100)
-            
+    def _draw_arrows(self, ax, parent, child):
         ax.arrow(parent.x,
                  parent.y, 
                  child.x - parent.x,
@@ -520,11 +469,15 @@ class Scene(Anchor):
                  width = 0.01,
                  length_includes_head = True)
         
-        ax.text(child.x, child.y, child.name, fontsize=10)
+    def _draw_anchors(self, ax, parent):
+        print(f'Drawing {parent.name}')
+        ax.scatter(parent.x, parent.y, color='black', marker='+', s=100)
+        ax.text(parent.x, parent.y, parent.name, fontsize=10)
         
-    def _draw_drawables(self, ax, parent, drawable_list):
+        
+    def _draw_drawables(self, ax, parent):
 
-        for d in drawable_list:
+        for d in parent.drawables:
             
             if isinstance(d, Point):
                 self._draw_point(ax, parent, d)
@@ -532,17 +485,21 @@ class Scene(Anchor):
             if isinstance(d, Scatter):
                 self._draw_scatter(ax, parent, d)
                 
+            if isinstance(d, Polygon):
+                self._draw_polygon(ax, parent, d)
+                
    
     def draw_elements(self, ax, parent, childs, verbose=False):
         if parent.drawables:
-    
-                self._draw_drawables(ax, parent, parent.drawables)
+                self._draw_drawables(ax, parent)
+        if verbose:
+            self._draw_anchors(ax, parent)
 
         if childs:
             for child in childs:
                                 
                 if verbose:
-                    self._draw_verbose(ax, parent, child)
+                    self._draw_arrows(ax, parent, child)
                     
                 # Yay, recursion (bis)
                 self.draw_elements(ax, child, child.childs, verbose=verbose)
@@ -581,8 +538,11 @@ if __name__ == '__main__':
     root.childs = [root2]
     
     
-    Scatter(x, y, color=['black', 'red'], size=20)
-    root.drawables = [Scatter(x, y, color=['black', 'red'], size=20)]
+    s = Scatter(x, y, color=['black', 'red'], size=20)
+    root.drawables = [s]
+    p = Polygon(6, alpha = 0.4, linewidth = 0.2)
+    
+    root2.drawables = [p]
         
     # Point(color='red', size=50).at(s)
     # p.at(root)
