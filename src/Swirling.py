@@ -82,6 +82,9 @@ class Anchor(object):
         
         Anchor.instances += 1
         
+    def __repr__(self):
+        return self.name
+        
         
     def __sub__(self, other:'Anchor'):
         ### to test
@@ -95,29 +98,21 @@ class Anchor(object):
         return self
     
     def __gt__(self, other):
-        
+        # Not really working, to check.
         if isinstance(other, Anchor):
             self.childs += [other]
-            
             return self
         
         elif isinstance(other, Anchors):
-              
             self.childs += other.childs
             return self
-                
-           
-        
+  
         elif isinstance(other, Drawable):
-                        
             self.drawables += [other]
-            
             return self
         
         elif isinstance(other, list) & all([isinstance(c, Anchor) for c in other]):
             self.childs += other
-        
-            
             return self
             
         else:
@@ -131,10 +126,7 @@ class Anchor(object):
                 c.y += b
                 
                 self._update_positions(c.childs, a, b)
-    
-    def _move_drawables(self, a, b):
-        print('Moving drawables!')
-    
+        
     def move_by(self, a, b):
         # Relative method to move the object and its childs
         self.x += a
@@ -191,6 +183,7 @@ class Anchor(object):
         
 #%% Drawabe Base Class
 class Drawable(object):
+    instances = 0
     # All methods and attributes for drawable objects.
     
     def __init__(self,
@@ -209,6 +202,8 @@ class Drawable(object):
         
         self.x = x
         self.y = y
+        if name == None:
+            name = f'Drawable-{Drawable.instances}'
         self.name = name
         self.parent = parent
         self.childs = []
@@ -222,8 +217,8 @@ class Drawable(object):
         self.is_drawable = is_drawable
         self.element = element
         
-    def at(self, anchor):
         
+    def at(self, anchor):
         if isinstance(anchor, Anchor):
             self.x -= np.mean(self.x)
             self.y -= np.mean(self.y)
@@ -233,12 +228,11 @@ class Drawable(object):
         else:
             raise ValueError(f'Only Anchors are accepted, got {type(anchor)}')
    
-    def shift_by(self, a, b):
+    def move_by(self, a, b):
         self.x += a
         self.y += b
-        
+                
         return self
-        
         
     def _broadcast_values(self, values, n=100):
         
@@ -251,6 +245,31 @@ class Drawable(object):
             values = values * (n // len(values))
             
         return values
+    
+    def rotate_by(self, angle):
+        # Method to rotate the drawables by any desired angle.
+        # Angle must be in degrees, converting to radians first
+        # Drawables are actually 0-centered then shifted to the anchor.
+        angle = angle / 180 * np.pi
+        
+        orig_x = np.mean(self.x)
+        orig_y = np.mean(self.y)
+
+        self.move_by(- orig_x, - orig_y)
+               
+        r, theta = Tools._cart_to_pol(self.x, self.y)
+        theta += angle
+        x, y = Tools._pol_to_cart(r, theta)
+
+        self.x = x
+        self.y = y
+       
+        # Back to original position    
+        self.move_by(orig_x, orig_y)
+        
+    def __repr__(self):
+        return self.name
+        
         
         
 #%% All the drawables
@@ -278,7 +297,7 @@ class Point(Drawable):
         
         
     def __repr__(self):
-        return f'Drawable point {self.name} at {self.x, self.y}'
+        return f'Point {self.name} at {self.x, self.y}'
             
     
             
@@ -304,6 +323,9 @@ class Scatter(Drawable):
             
         Scatter.instances += 1
         
+    def __repr__(self):
+        return f'Scatter of {len(self.x)} points.'
+        
         
         
         
@@ -314,15 +336,12 @@ class Anchors(Anchor):
     def __init__(self,
                  xs = [], 
                  ys = [],
-                
                  name = None,
-                 
-                 colors = 'red',
                 ):
         
         # Need unique names for the graph display
         if name is None:
-            name = f'Group of Anchors-{Anchors.instances}'
+            name = f'Anchors-{Anchors.instances}'
         Anchors.instances += 1
 
         Anchor.__init__(self, np.mean(xs), np.mean (ys), name = name, childs = [], drawables = [])
@@ -340,9 +359,10 @@ class Anchors(Anchor):
 class Polygon(Drawable):
     instances = 0
     
-    def __init__(self, n, size=1,
+    def __init__(self, 
+                 n, 
+                 size=1,
                  polygon_type = 'regular', 
-                 
                  xs = None, 
                  ys = None,
                  parent = None,
@@ -366,7 +386,10 @@ class Polygon(Drawable):
         if name is None:
             name = f'Polygon-{Polygon.instances}'
         
-        Drawable.__init__(self, x = xs, y = ys, 
+        Drawable.__init__(self, 
+                          x = xs, 
+                          y = ys, 
+                          name = name,
                           facecolor = facecolor, 
                           linecolor = linecolor, 
                           linewidth = linewidth, 
@@ -374,6 +397,9 @@ class Polygon(Drawable):
                           fill = fill)
                   
         Polygon.instances += 1
+        
+    def __repr__(self):
+        return f'{self.name} with {len(self.x)} edges.'
         
         
         
@@ -388,40 +414,54 @@ class Scene(Anchor):
         Anchor.__init__(self, name = name, childs = childs)
         
     def __repr__(self):
-        return f'Scene {self.name} with {len(self.childs)} direct child(s).'        
+        return f'{self.name}, {len(self.childs)} child(s).'        
     
     
     def add_node(self, dot, parent, childs, verbose=False):
         
         
+        dot.attr('node', shape='diamond')
+        parent_name = parent.name
+        
+        if verbose:
+            parent_name = parent.__repr__()
+            
+        dot.node(parent_name)
+
+        
+        if parent.drawables:
+            for d in parent.drawables:
+                dot.attr('node', shape='ellipse', fontsize="10pt", beautify='true')
+                # drawable_name = d.name
+                if verbose:
+                    drawable_name = d.__repr__()
+                    
+                
+                dot.node(drawable_name)
+                dot.edge(parent_name, drawable_name)
+                    
         if childs:
             for child in childs:
                 dot.attr('node', shape='plaintext', fontsize="10pt", beautify='true')
-                
-                if isinstance(child, Point):
-                    dot.attr('node', shape='circle', fontsize="10pt", beautify='true')
-                    
-                elif isinstance(child, Polygon):
-                    dot.attr('node', shape='polygon', fontsize="10pt", beautify='true')
-                    
-                    
+                                    
+                if isinstance(child, Anchors):
+                    dot.attr('node', shape='rectangle', fontsize="10pt", beautify='true')
+            
                 child_name = child.name
                 if verbose:
                     child_name = child.__repr__()
                     
                 dot.node(child_name)
-                dot.edge(parent, child_name)
+                dot.edge(parent_name, child_name)
+                
                 # Yay, recursion!
-                self.add_node(dot, child_name, child.childs, verbose=verbose)
+                self.add_node(dot, child, child.childs, verbose=verbose)
         
     def show_hierarchy(self, name='test', verbose=False):
         dot = graphviz.Digraph(f'Hierarchy view for {self.name} scene', 
                                format='svg', 
                                )
-        # Scene first
-        dot.attr('node', shape='diamond')
-        dot.node(self.name)
-        self.add_node(dot, self.name, self.childs, verbose=verbose)
+        self.add_node(dot, self, self.childs, verbose=verbose)
         
         dot = dot.unflatten()
         
@@ -470,7 +510,7 @@ class Scene(Anchor):
                  length_includes_head = True)
         
     def _draw_anchors(self, ax, parent):
-        print(f'Drawing {parent.name}')
+ 
         ax.scatter(parent.x, parent.y, color='black', marker='+', s=100)
         ax.text(parent.x, parent.y, parent.name, fontsize=10)
         
@@ -531,32 +571,18 @@ if __name__ == '__main__':
     
     scene = Scene()
     
-    root = Anchor(1, 0.5)
-    root2 = Anchor(2, 2)
+    anchors = Anchors(*Circular(n=4).uniform())
+    scene > anchors
+    anchors.rotate_by(45)
     
-    scene.childs = [root]
-    root.childs = [root2]
-    
-    
-    s = Scatter(x, y, color=['black', 'red'], size=20)
-    root.drawables = [s]
-    p = Polygon(6, alpha = 0.4, linewidth = 0.2)
-    
-    root2.drawables = [p]
+    for a in anchors.childs:
+        p = Polygon(4, linewidth=0.5, alpha = 0.5)
+        p.rotate_by(45)
+        a.drawables = [p]
+        p.parent = a
         
-    # Point(color='red', size=50).at(s)
-    # p.at(root)
-
-    #♣ root > s
     
-    
-    
-    
-    # root.drawables = [s]
-    # scene.rotate_by(90)
-    
-    
-    scene.quick_display(verbose=True)
+    scene.show_hierarchy(verbose = True)
     
     
 
