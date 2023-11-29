@@ -685,7 +685,7 @@ def rotating_squares():
 #%% Main
 if __name__ == '__main__':
     
-    hexagons()
+    rotating_squares()
     
     
     
