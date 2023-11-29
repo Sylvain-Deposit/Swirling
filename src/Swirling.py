@@ -692,14 +692,3 @@ if __name__ == '__main__':
     # scene.show_hierarchy(verbose = True)
     # scene.quick_display(verbose=False)
     
-    
-
-    
-   
-   
-
-        
-    
-
-      
-        
