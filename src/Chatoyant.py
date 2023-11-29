@@ -237,7 +237,7 @@ class ColorMap:
 
         colors = [self.color_map[i] for i in indexes]
 
-        return colors
+        return ColorMap(color_map=colors, name=self.name+'-indexed')
 
     def set_name(self, name=None):
         # Set the name of the ColorMap. Cosmetic only.

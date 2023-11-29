@@ -11,6 +11,7 @@ from matplotlib import patches as MatplotPatches
 import numpy as np
 
 from distributions import Spiral, Parametric, Circular
+from functions import Distance
 import Chatoyant
 
 from moviepy.editor import VideoClip
@@ -133,8 +134,8 @@ class Anchor(object):
         self.y += b
         
         self._update_positions(self.childs, a, b)
-        if self.drawables:
-            self._move_drawables(a, b)
+        # if self.drawables:
+        #     self._move_drawables(a, b)
         
     def move_to(self, a, b):
         # Absolute method to move the object to the desired position, 
@@ -175,6 +176,28 @@ class Anchor(object):
             
         # Back to original position    
         self.move_by(orig_x, orig_y)
+        
+    def scale(self, size):
+        
+        
+        # let's remember where the object was
+        orig_x = self.x
+        orig_y = self.y
+        
+        # Going to scene origin
+        self.move_by(-orig_x, -orig_y)
+        
+        # Rotating the position of all the childs and updating their own childs
+        for c in self.childs:
+            r, theta = Tools._cart_to_pol(c.x, c.y)
+            r *= size
+            x, y = Tools._pol_to_cart(r, theta)
+            
+            c.move_by(x-c.x, y-c.y)
+            
+        # Back to original position    
+        self.move_by(orig_x, orig_y)
+        
  
         
     
@@ -189,7 +212,7 @@ class Drawable(object):
     def __init__(self,
                  x, y,
                  name = None,
-                 parent = Anchor(0, 0),
+                 parent = None,
                  color = 'black',
                  fill = True,
                  size = 20,
@@ -202,7 +225,7 @@ class Drawable(object):
         
         self.x = x
         self.y = y
-        if name == None:
+        if name is None:
             name = f'Drawable-{Drawable.instances}'
         self.name = name
         self.parent = parent
@@ -395,6 +418,8 @@ class Polygon(Drawable):
                           linewidth = linewidth, 
                           alpha = alpha,
                           fill = fill)
+        
+        # self.rotate_by(180 / n)
                   
         Polygon.instances += 1
         
@@ -565,24 +590,107 @@ class Scene(Anchor):
     def render(self, ax):
         self.draw_elements(ax, self, self.childs, verbose=False)
 
-#%% Main
-if __name__ == '__main__':
-    x, y = Parametric(n=30).sunflower(alpha=1)
+
+def hexagons():
+    n_points = 150
+    x, y = Parametric(n=n_points).sunflower(alpha=1)
+    x *= 4
+    y *= 4
+    
+    sizes = Distance(x, y).normal(sd=5) + 0.2
+ 
+    # sizes = sizes[::-1]
+    colors = Chatoyant.ColorMap().from_matplotlib('inferno', n=n_points//2)
+    colors = (colors + colors.invert()).map_to_index(sizes)
     
     scene = Scene()
     
-    anchors = Anchors(*Circular(n=4).uniform())
+    anchors = Anchors(x, y)
     scene > anchors
-    anchors.rotate_by(45)
     
-    for a in anchors.childs:
-        p = Polygon(4, linewidth=0.5, alpha = 0.5)
-        p.rotate_by(45)
-        a.drawables = [p]
-        p.parent = a
+    
+    
+    for a, c, s in zip(anchors.childs, colors.to_float_list(), sizes):
+        p = Polygon(6, linewidth=0, alpha = 0.8, size=s, facecolor=c)
+        p2 = Polygon(6, linewidth=0, alpha = 1, size=s/3, facecolor=c)
+
+        a.drawables = [p, p2]
         
+    scene.quick_display(verbose=False)
+       
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4))
+
+    def make_frame(t):
+        fps = 50
+        ax.clear()
+        ax.axis('off')
+        ax.set_xlim(-4, 4)
+        ax.set_ylim(-4, 4)
+        
+        scene.render(ax)
+        idx = int(t * fps)
+        anchors.rotate_by(3.6)
+
+        for a, c in zip(anchors.childs, colors.roll(idx).to_float_list()):
+            for d in a.drawables:
+                
+                d.facecolor = c
+                
+        fig.tight_layout(pad=0.8)
+        return mplfig_to_npimage(fig)
     
-    scene.show_hierarchy(verbose = True)
+    # make_frame(1)
+
+    animation = VideoClip(make_frame, duration=3)
+    animation.write_gif('hexagons.gif', fps=50)
+    
+def rotating_squares():
+    scene = Scene()
+    
+    root = Anchors(*Circular(4).uniform())
+    root.scale(2)
+    
+
+    scene > root    
+    for c in root.childs:
+        c.drawables = [Polygon(4, size=2, linewidth=1)]
+        
+     
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4))
+    
+    def make_frame(t):
+        ax.clear()
+        ax.axis('off')
+        ax.set_xlim(-4, 4)
+        ax.set_ylim(-4, 4)
+        
+        scene.render(ax)
+       
+        if 0<t<1:
+            root.rotate_by(4.5)
+        
+        if 1 <= t <=2 :
+            for c in root.childs:
+                for d in c.drawables:
+                    d.rotate_by(-4.5)
+        fig.tight_layout(pad=0.2)
+        return mplfig_to_npimage(fig)
+    
+    animation = VideoClip(make_frame, duration=2)
+    animation.write_gif('moving_squares.gif', fps=20)
+    
+
+
+
+#%% Main
+if __name__ == '__main__':
+    
+    hexagons()
+    
+    
+    
+    # scene.show_hierarchy(verbose = True)
+    # scene.quick_display(verbose=False)
     
     
 

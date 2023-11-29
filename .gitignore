@@ -161,3 +161,4 @@ cython_debug/
 
 # test craps
 test*.*
+*.gif
