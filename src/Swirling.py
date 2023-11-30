@@ -61,23 +61,26 @@ class Anchor(object):
         self.y = y
         
         self.drawables = [] 
-        if isinstance(drawables, Drawable):
-            self.drawables.append(drawables)
+        if drawables is not None:
             
-        elif isinstance(drawables, list) & all([isinstance(d, Drawable) for d in drawables]):
-                self.drawables += drawables
-        else:
-            raise TypeError('Drawables must be a Drawable or list of Drawable objects.')
+            if isinstance(drawables, Drawable):
+                self.drawables.append(drawables)
+                
+            elif isinstance(drawables, list) & all([isinstance(d, Drawable) for d in drawables]):
+                    self.drawables += drawables
+            else:
+                raise TypeError('Drawables must be a Drawable or list of Drawable objects.')
                    
         self.childs = []
         
-        if isinstance(childs, Anchor):
-            self.childs.append(childs)
-            
-        elif isinstance(childs, list) & all([isinstance(c, Anchor) for c in childs]):
-                self.childs += childs
-        else:
-            raise TypeError('Childs must be a Anchor or list of Anchor objects')
+        if childs is not None:
+            if isinstance(childs, Anchor):
+                self.childs.append(childs)
+                
+            elif isinstance(childs, list) & all([isinstance(c, Anchor) for c in childs]):
+                    self.childs += childs
+            else:
+                raise TypeError('Childs must be a Anchor or list of Anchor objects')
         
         # Just in case...
         self.name = name if isinstance(name, str) else f'Anchor-{Anchor.instances}'
@@ -227,7 +230,7 @@ class Drawable(object):
 
         self.name = name if isinstance(name, str) else f'Drawable-{Drawable.instances}'
         
-        self.childs = []
+        
         self.color = color
         self.size = size
         self.alpha = alpha
@@ -287,7 +290,7 @@ class Drawable(object):
         self.move_by(orig_x, orig_y)
         
     def __repr__(self):
-        return self.name
+        return f'{self.name} at {np.mean(self.x):3.2f}, {np.mean(self.y):3.2f}'
         
         
         
@@ -421,6 +424,9 @@ class Polygon(Drawable):
         
     def __repr__(self):
         return f'Polygon {self.name} with {len(self.x)} edges.'
+    
+class Ellipse(Drawable):
+    def __init__(self, x, y)
         
         
         
@@ -432,7 +438,9 @@ class Scene(Anchor):
                  childs = None, 
                  ):
         
-        Anchor.__init__(self, name = name, childs = childs)
+        childs = childs if childs else []
+        
+        Anchor.__init__(self, name = name, childs = [])
         
     def __repr__(self):
         return f'Scene {self.name}, {len(self.childs)} child(s).'        
@@ -664,7 +672,7 @@ def rotating_squares():
         
         scene.render(ax)
        
-        if 0<t<1:
+        if 0 < t < 1:
             root.rotate_by(4.5)
         
         if 1 <= t <=2 :
