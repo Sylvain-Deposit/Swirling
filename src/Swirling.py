@@ -52,16 +52,22 @@ class Anchor(object):
     def __init__(self,
                  x = 0, 
                  y = 0,
-                 parent = None,
                  name:str = None,
-                 childs = [],
-                 drawables = [],
-                 element = 'anchor'):
+                 childs = None,
+                 drawables = None,
+                 ):
         
         self.x = x
         self.y = y
-        self.element = element
-        self.drawables = drawables
+        
+        self.drawables = [] 
+        if isinstance(drawables, Drawable):
+            self.drawables.append(drawables)
+            
+        elif isinstance(drawables, list) & all([isinstance(d, Drawable) for d in drawables]):
+                self.drawables += drawables
+        else:
+            raise TypeError('Drawables must be a Drawable or list of Drawable objects.')
                    
         self.childs = []
         
@@ -74,17 +80,12 @@ class Anchor(object):
             raise TypeError('Childs must be a Anchor or list of Anchor objects')
         
         # Just in case...
-        if isinstance(name, str):
-            self.name = name
-        else:
-            self.name = f'Anchor-{Anchor.instances}'
-            
-        self.is_drawable = False
-        
+        self.name = name if isinstance(name, str) else f'Anchor-{Anchor.instances}'
+       
         Anchor.instances += 1
         
     def __repr__(self):
-        return self.name
+        return f'Anchor {self.name} at {self.x:3.2f}, {self.y:3.2f}'
         
         
     def __sub__(self, other:'Anchor'):
@@ -134,8 +135,7 @@ class Anchor(object):
         self.y += b
         
         self._update_positions(self.childs, a, b)
-        # if self.drawables:
-        #     self._move_drawables(a, b)
+        
         
     def move_to(self, a, b):
         # Absolute method to move the object to the desired position, 
@@ -212,7 +212,7 @@ class Drawable(object):
     def __init__(self,
                  x, y,
                  name = None,
-                 parent = None,
+                 
                  color = 'black',
                  fill = True,
                  size = 20,
@@ -220,15 +220,13 @@ class Drawable(object):
                  linewidth = 5,
                  linecolor = 'black',
                  facecolor = 'red',
-                 element = 'point',
-                 is_drawable = True):
+                 ):
         
         self.x = x
         self.y = y
-        if name is None:
-            name = f'Drawable-{Drawable.instances}'
-        self.name = name
-        self.parent = parent
+
+        self.name = name if isinstance(name, str) else f'Drawable-{Drawable.instances}'
+        
         self.childs = []
         self.color = color
         self.size = size
@@ -237,9 +235,7 @@ class Drawable(object):
         self.fill = fill
         self.facecolor = facecolor
         self.linecolor = linecolor
-        self.is_drawable = is_drawable
-        self.element = element
-        
+      
         
     def at(self, anchor):
         if isinstance(anchor, Anchor):
@@ -302,7 +298,7 @@ class Point(Drawable):
     def __init__(self,
                  x = 0, 
                  y = 0,
-                 parent = None,
+                
                  name = None,
                 
                  color = 'black',
@@ -316,11 +312,11 @@ class Point(Drawable):
         Point.instances += 1
       
         Drawable.__init__(self, x, y, name = name, color = color, size = size, alpha = alpha)
-        self.parent = parent
+       
         
         
     def __repr__(self):
-        return f'Point {self.name} at {self.x, self.y}'
+        return f'Point {self.name} at {self.x:3.2f}, {self.y:3.2f}'
             
     
             
@@ -371,7 +367,7 @@ class Anchors(Anchor):
 
         for x, y in zip(xs, ys):
             
-            self.childs.append(Anchor(x, y, childs=[]))
+            self.childs.append(Anchor(x, y))
    
             
     def __repr__(self):
@@ -388,7 +384,7 @@ class Polygon(Drawable):
                  polygon_type = 'regular', 
                  xs = None, 
                  ys = None,
-                 parent = None,
+                 
                  name = None,
                  facecolor = 'red',
                  linecolor = 'black',
@@ -424,7 +420,7 @@ class Polygon(Drawable):
         Polygon.instances += 1
         
     def __repr__(self):
-        return f'{self.name} with {len(self.x)} edges.'
+        return f'Polygon {self.name} with {len(self.x)} edges.'
         
         
         
@@ -433,13 +429,13 @@ class Polygon(Drawable):
 class Scene(Anchor):
     def __init__(self, 
                  name:str = 'Scene', 
-                 childs = [], 
+                 childs = None, 
                  ):
         
         Anchor.__init__(self, name = name, childs = childs)
         
     def __repr__(self):
-        return f'{self.name}, {len(self.childs)} child(s).'        
+        return f'Scene {self.name}, {len(self.childs)} child(s).'        
     
     
     def add_node(self, dot, parent, childs, verbose=False):
@@ -457,7 +453,7 @@ class Scene(Anchor):
         if parent.drawables:
             for d in parent.drawables:
                 dot.attr('node', shape='ellipse', fontsize="10pt", beautify='true')
-                # drawable_name = d.name
+                drawable_name = d.name
                 if verbose:
                     drawable_name = d.__repr__()
                     
@@ -498,7 +494,8 @@ class Scene(Anchor):
                    point.y + parent.y, 
                    color = point.color, 
                    s = point.size, 
-                   alpha = point.alpha)
+                   alpha = point.alpha,
+                   **kwargs)
         
     def _draw_scatter(self, ax, parent, scatter, **kwargs):
             
@@ -506,19 +503,21 @@ class Scene(Anchor):
                    scatter.y + parent.y, 
                    color = scatter.color, 
                    s = scatter.size, 
-                   alpha = scatter.alpha)
+                   alpha = scatter.alpha,
+                   **kwargs)
         
                 
-    def _draw_polygon(self, ax, parent, poly):
+    def _draw_polygon(self, ax, parent, poly, **kwargs):
         xy = [[parent.x + x, parent.y + y] for x, y in zip(poly.x, poly.y)]
         
         poly = MatplotPatches.Polygon(xy,
                                       facecolor = poly.facecolor,
-                                      edgecolor = poly.linecolor, # Matplotlib constantly swings between linecolor and edgecolor :(
+                                      edgecolor = poly.linecolor, # Matplotlib swings between linecolor and edgecolor :(
                                       linewidth = poly.linewidth,
                                       alpha = poly.alpha,
                                       antialiased = True,
-                                      fill = poly.fill)
+                                      fill = poly.fill,
+                                      **kwargs)
         ax.add_patch(poly)
         
         
@@ -529,7 +528,7 @@ class Scene(Anchor):
                  child.y - parent.y,
                  color = 'red', 
                  linewidth = 0.2,
-                 linestyle = '--',
+                 linestyle = ':',
                  alpha = 0.5,
                  width = 0.01,
                  length_includes_head = True)
@@ -571,8 +570,7 @@ class Scene(Anchor):
         
     def quick_display(self, verbose=False):
         fig, ax = plt.subplots(figsize=(8,8), ncols=1, nrows=1)
-        ax.set_xlim(-5, 5)
-        ax.set_ylim(-5, 5)
+        
         
         if verbose:
             ax.scatter(self.x, self.y, color='black', marker='+', s=100)
