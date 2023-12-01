@@ -185,12 +185,12 @@ class Anchor(object):
     def scale_by(self, size):
         self._apply_polar_transform(size=size)
         
-    def rotate_drawables(self, angle):
+    def rotate_drawables_by(self, angle):
         if self.drawables is not None:
             for d in self.drawables:
                 d.rotate_by(angle)
                 
-    def scale_drawables(self, size):
+    def scale_drawables_by(self, size):
         if self.drawables is not None:
             for d in self.drawables:
                 d.scale_by(size)
@@ -322,8 +322,6 @@ class Point(Drawable):
       
         Drawable.__init__(self, x, y, name = name, color = color, size = size, alpha = alpha)
        
-        
-        
     def __repr__(self):
         return f'Point {self.name} at {self.x:3.2f}, {self.y:3.2f}'
             
@@ -393,7 +391,6 @@ class Polygon(Drawable):
                  polygon_type = 'regular', 
                  xs = None, 
                  ys = None,
-                 
                  name = None,
                  facecolor = 'red',
                  linecolor = 'black',
@@ -433,7 +430,8 @@ class Polygon(Drawable):
     
 class Circle(Drawable):
     instances = 0
-    def __init__(self, x, y,
+    def __init__(self, x = 0, 
+                 y = 0,
                  radius = 1,
                  name = None,
                  facecolor = 'red',
@@ -506,7 +504,6 @@ class Scene(Anchor):
                 if verbose:
                     drawable_name = d.__repr__()
                     
-                
                 dot.node(drawable_name)
                 dot.edge(parent_name, drawable_name)
                     
@@ -580,7 +577,7 @@ class Scene(Anchor):
                                        antialiased = True,
                                        fill = circle.fill,
                                        **kwargs)
-        ax.add(circle)
+        ax.add_patch(circle)
         
     def _draw_arrows(self, ax, parent, child):
         ax.arrow(parent.x,
@@ -635,7 +632,6 @@ class Scene(Anchor):
     def quick_display(self, verbose=False):
         fig, ax = plt.subplots(figsize=(8,8), ncols=1, nrows=1)
         
-        
         if verbose:
             ax.scatter(self.x, self.y, color='black', marker='+', s=100)
             ax.text(self.x, self.y, self.name, fontsize=10)
@@ -679,9 +675,7 @@ def hexagons():
         p2 = Polygon(6, linewidth=0, alpha = 1, size=s/3, facecolor=c)
 
         a.drawables = [p, p2]
-        
-    #☻ scene.quick_display(verbose=False)
-       
+               
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4), dpi=75)
     
 
@@ -694,6 +688,7 @@ def hexagons():
         
         
         scene.render(ax)
+        
         idx = int(t * fps)
         cmap = colors.roll(idx).to_float_list()
         anchors.rotate_by(3.6)
@@ -706,7 +701,6 @@ def hexagons():
         fig.tight_layout(pad=0.8)
         return mplfig_to_npimage(fig)
     
-    # make_frame(1)
 
     animation = VideoClip(make_frame, duration=duration)
     animation.write_gif('hexagons.gif', fps=fps)
@@ -744,15 +738,51 @@ def rotating_squares():
         return mplfig_to_npimage(fig)
     
     animation = VideoClip(make_frame, duration=2)
-    animation.write_gif('rotating_squares.gif', fps=20)
+    animation.write_gif('rotating_squares.gif', fps=20, verbose=True)
     
 
 
 
 #%% Main
 if __name__ == '__main__':
+    scene = Scene()
+    root = Anchor()
+    scene > root
+          
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(2, 2), dpi=75)
     
-    rotating_squares()
+    def make_frame(t):
+        ax.clear()
+        ax.axis('off')
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        
+        scene.render(ax)
+        c = np.random.uniform(0, 1)
+        if c > 0.8:
+            x = np.random.uniform(-1, 1)
+            y = np.random.uniform(-1, 1)
+            p = Anchor(x, y)
+            root > p
+            
+            p.drawables.append(Circle(radius=0.05, linewidth=0))
+
+        root.rotate_by(2)
+        
+       
+        # scene.quick_display(verbose=True)        
+        fig.tight_layout(pad=0.2)
+        
+        
+        return mplfig_to_npimage(fig)
+    
+    # t = make_frame(1)
+    # plt.imshow(t)
+    
+    animation = VideoClip(make_frame, duration=5)
+    animation.write_gif('Appearing_points.gif', fps=40)
+    
+    
     
     
     
