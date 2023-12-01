@@ -157,7 +157,7 @@ class Anchor(object):
         if link:
             other.childs.append(self)
         
-    def rotate_by(self, angle):
+    def _apply_polar_transform(self, angle=0, size=1):
         # Method to rotate the obeject by any desired angle and update its childs.
         # Angle must be in degrees, converting to radians first
         angle = angle / 180 * np.pi
@@ -173,26 +173,6 @@ class Anchor(object):
         for c in self.childs:
             r, theta = Tools._cart_to_pol(c.x, c.y)
             theta += angle
-            x, y = Tools._pol_to_cart(r, theta)
-            
-            c.move_by(x-c.x, y-c.y)
-            
-        # Back to original position    
-        self.move_by(orig_x, orig_y)
-        
-    def scale(self, size):
-        
-        
-        # let's remember where the object was
-        orig_x = self.x
-        orig_y = self.y
-        
-        # Going to scene origin
-        self.move_by(-orig_x, -orig_y)
-        
-        # Rotating the position of all the childs and updating their own childs
-        for c in self.childs:
-            r, theta = Tools._cart_to_pol(c.x, c.y)
             r *= size
             x, y = Tools._pol_to_cart(r, theta)
             
@@ -200,6 +180,13 @@ class Anchor(object):
             
         # Back to original position    
         self.move_by(orig_x, orig_y)
+        
+        
+    def rotate_by(self, angle):
+        self._apply_polar_transform(angle=angle)
+        
+    def scale_by(self, size):
+        self._apply_polar_transform(size=size)
         
  
         
@@ -238,6 +225,9 @@ class Drawable(object):
         self.fill = fill
         self.facecolor = facecolor
         self.linecolor = linecolor
+        
+    def __repr__(self):
+        return f'{self.name} at {np.mean(self.x):3.2f}, {np.mean(self.y):3.2f}'
       
         
     def at(self, anchor):
@@ -268,7 +258,7 @@ class Drawable(object):
             
         return values
     
-    def rotate_by(self, angle):
+    def _apply_polar_transform(self, angle=0, size=1):
         # Method to rotate the drawables by any desired angle.
         # Angle must be in degrees, converting to radians first
         # Drawables are actually 0-centered then shifted to the anchor.
@@ -281,6 +271,7 @@ class Drawable(object):
                
         r, theta = Tools._cart_to_pol(self.x, self.y)
         theta += angle
+        r *= size
         x, y = Tools._pol_to_cart(r, theta)
 
         self.x = x
@@ -289,8 +280,15 @@ class Drawable(object):
         # Back to original position    
         self.move_by(orig_x, orig_y)
         
-    def __repr__(self):
-        return f'{self.name} at {np.mean(self.x):3.2f}, {np.mean(self.y):3.2f}'
+    
+    def rotate_by(self, angle):
+        self._apply_polar_transform(angle = angle)
+        
+    def scale_by(self, size):
+        self._apply_polar_transform(size = size)
+
+        
+
         
         
         
@@ -425,8 +423,43 @@ class Polygon(Drawable):
     def __repr__(self):
         return f'Polygon {self.name} with {len(self.x)} edges.'
     
-class Ellipse(Drawable):
-    def __init__(self, x, y)
+class Circle(Drawable):
+    instances = 0
+    def __init__(self, x, y,
+                 radius = 1,
+                 name = None,
+                 facecolor = 'red',
+                 linecolor = 'black',
+                 linewidth = 3,
+                 alpha = 1,
+                 fill = True):
+        
+        if name is None:
+            name = f'Circle-{Circle.instances}'
+        
+        Drawable.__init__(self, 
+                          x = x, 
+                          y = y, 
+                          name = name,
+                          facecolor = facecolor, 
+                          linecolor = linecolor, 
+                          linewidth = linewidth, 
+                          alpha = alpha,
+                          fill = fill)
+        
+        self.radius = radius
+        
+        def __repr__(self):
+            return f'Circle {self.name} at {self.x:3.2f}, {self.y:3.2f}'
+        
+        def rotate_by(self, angle):
+            # Sneaky way to don't do anything when we rotate a circle
+            pass
+        
+        def scale_by(self, scale):
+            self.radius *= scale
+            
+        
         
         
         
@@ -520,7 +553,7 @@ class Scene(Anchor):
         
         poly = MatplotPatches.Polygon(xy,
                                       facecolor = poly.facecolor,
-                                      edgecolor = poly.linecolor, # Matplotlib swings between linecolor and edgecolor :(
+                                      edgecolor = poly.linecolor, 
                                       linewidth = poly.linewidth,
                                       alpha = poly.alpha,
                                       antialiased = True,
@@ -528,6 +561,18 @@ class Scene(Anchor):
                                       **kwargs)
         ax.add_patch(poly)
         
+    def _draw_circle(self, ax, parent, circle, **kwargs):
+        xy = [parent.x + self.x, parent.y + self.y]
+        circle = MatplotPatches.Circle(xy, 
+                                       radius = circle.radius,
+                                       facecolor = circle.facecolor,
+                                       edgecolor = circle.linecolor, 
+                                       linewidth = circle.linewidth,
+                                       alpha = circle.alpha,
+                                       antialiased = True,
+                                       fill = circle.fill,
+                                       **kwargs)
+        ax.add(circle)
         
     def _draw_arrows(self, ax, parent, child):
         ax.arrow(parent.x,
@@ -559,6 +604,9 @@ class Scene(Anchor):
                 
             if isinstance(d, Polygon):
                 self._draw_polygon(ax, parent, d)
+                
+            if isinstance(d, Circle):
+                self._draw_circle(ax, parent, d)
                 
    
     def draw_elements(self, ax, parent, childs, verbose=False):
@@ -622,9 +670,10 @@ def hexagons():
 
         a.drawables = [p, p2]
         
-    scene.quick_display(verbose=False)
+    #☻ scene.quick_display(verbose=False)
        
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4))
+    
 
     def make_frame(t):
         fps = 50
@@ -633,11 +682,13 @@ def hexagons():
         ax.set_xlim(-4, 4)
         ax.set_ylim(-4, 4)
         
+        
         scene.render(ax)
         idx = int(t * fps)
+        cmap = colors.roll(idx).to_float_list()
         anchors.rotate_by(3.6)
 
-        for a, c in zip(anchors.childs, colors.roll(idx).to_float_list()):
+        for a, c in zip(anchors.childs, cmap):
             for d in a.drawables:
                 
                 d.facecolor = c
@@ -654,7 +705,7 @@ def rotating_squares():
     scene = Scene()
     
     root = Anchors(*Circular(4).uniform())
-    root.scale(2)
+    root.scale_by(2)
     
 
     scene > root    
@@ -691,7 +742,7 @@ def rotating_squares():
 #%% Main
 if __name__ == '__main__':
     
-    rotating_squares()
+    hexagons()
     
     
     
