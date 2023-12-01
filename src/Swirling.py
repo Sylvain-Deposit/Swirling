@@ -65,7 +65,6 @@ class Anchor(object):
             
             if isinstance(drawables, Drawable):
                 self.drawables.append(drawables)
-                
             elif isinstance(drawables, list) & all([isinstance(d, Drawable) for d in drawables]):
                     self.drawables += drawables
             else:
@@ -76,11 +75,10 @@ class Anchor(object):
         if childs is not None:
             if isinstance(childs, Anchor):
                 self.childs.append(childs)
-                
             elif isinstance(childs, list) & all([isinstance(c, Anchor) for c in childs]):
                     self.childs += childs
             else:
-                raise TypeError('Childs must be a Anchor or list of Anchor objects')
+                raise TypeError('Childs must be an Anchor or list of Anchor objects')
         
         # Just in case...
         self.name = name if isinstance(name, str) else f'Anchor-{Anchor.instances}'
@@ -181,12 +179,22 @@ class Anchor(object):
         # Back to original position    
         self.move_by(orig_x, orig_y)
         
-        
     def rotate_by(self, angle):
         self._apply_polar_transform(angle=angle)
         
     def scale_by(self, size):
         self._apply_polar_transform(size=size)
+        
+    def rotate_drawables(self, angle):
+        if self.drawables is not None:
+            for d in self.drawables:
+                d.rotate_by(angle)
+                
+    def scale_drawables(self, size):
+        if self.drawables is not None:
+            for d in self.drawables:
+                d.scale_by(size)
+        
         
  
         
@@ -646,6 +654,8 @@ class Scene(Anchor):
 
 
 def hexagons():
+    duration = 3
+    fps = 50
     n_points = 150
     x, y = Parametric(n=n_points).sunflower(alpha=1)
     x *= 4
@@ -672,11 +682,11 @@ def hexagons():
         
     #☻ scene.quick_display(verbose=False)
        
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4), dpi=75)
     
 
     def make_frame(t):
-        fps = 50
+        
         ax.clear()
         ax.axis('off')
         ax.set_xlim(-4, 4)
@@ -698,8 +708,8 @@ def hexagons():
     
     # make_frame(1)
 
-    animation = VideoClip(make_frame, duration=3)
-    animation.write_gif('hexagons.gif', fps=50)
+    animation = VideoClip(make_frame, duration=duration)
+    animation.write_gif('hexagons.gif', fps=fps)
     
 def rotating_squares():
     scene = Scene()
@@ -713,7 +723,7 @@ def rotating_squares():
         c.drawables = [Polygon(4, size=2, linewidth=1)]
         
      
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4,4))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(2, 2), dpi=75)
     
     def make_frame(t):
         ax.clear()
@@ -728,13 +738,13 @@ def rotating_squares():
         
         if 1 <= t <=2 :
             for c in root.childs:
-                for d in c.drawables:
-                    d.rotate_by(-4.5)
+                c.rotate_drawables(-4.5)
+                
         fig.tight_layout(pad=0.2)
         return mplfig_to_npimage(fig)
     
     animation = VideoClip(make_frame, duration=2)
-    animation.write_gif('moving_squares.gif', fps=20)
+    animation.write_gif('rotating_squares.gif', fps=20)
     
 
 
@@ -742,7 +752,7 @@ def rotating_squares():
 #%% Main
 if __name__ == '__main__':
     
-    hexagons()
+    rotating_squares()
     
     
     
