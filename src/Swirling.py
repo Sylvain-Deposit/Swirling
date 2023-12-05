@@ -5,7 +5,7 @@
 Ceci est un script temporaire.
 """
 import warnings
-import graphviz
+# import graphviz
 import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
