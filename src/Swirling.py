@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
 
-from distributions import Spiral, Parametric, Circular
-from functions import Distance
-import Chatoyant
+from .distributions import Spiral, Parametric, Circular
+from .functions import Distance
+from . import Chatoyant
 
 from moviepy.editor import VideoClip
 from moviepy.video.io.bindings import mplfig_to_npimage
