@@ -5,7 +5,7 @@
 Ceci est un script temporaire.
 """
 import warnings
-import graphviz
+# import graphviz
 import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
@@ -194,12 +194,6 @@ class Anchor(object):
         if self.drawables is not None:
             for d in self.drawables:
                 d.scale_by(size)
-        
-        
- 
-        
-    
-        
         
         
 #%% Drawabe Base Class
@@ -465,10 +459,7 @@ class Circle(Drawable):
         def scale_by(self, scale):
             self.radius *= scale
             
-        
-        
-        
-        
+ 
    
 #%% Scene class        
 class Scene(Anchor):
@@ -645,19 +636,19 @@ class Scene(Anchor):
                 # Yay, recursion (bis)
                 self.draw_elements(ax, child, child.childs, verbose=verbose)
         
-    def quick_display(self, verbose=False, **kwargs):
+    def quick_display(self, verbose=False, padding = 1, **kwargs):
         fig, ax = plt.subplots(ncols=1, nrows=1, **kwargs)
         Xs, Ys = self._gather_coords()
         
-        ax.set_xlim(min(Xs) - 1, max(Xs) + 1)
-        ax.set_ylim(min(Ys) - 1, max(Ys) + 1)
+        ax.set_xlim(min(Xs) - padding, max(Xs) + padding)
+        ax.set_ylim(min(Ys) - padding, max(Ys) + padding)
 
         if verbose:
-            ax.scatter(self.x, self.y, color='black', marker='+', s=100)
-            ax.text(self.x, self.y, self.name, fontsize=10)
             ax.axis('on')
             ax.grid(which='both')
-                    
+            ax.scatter(self.x, self.y, color='black', marker='+', s=100)
+            ax.text(self.x, self.y, self.name, fontsize=10)
+
         self.draw_elements(ax, self, self.childs, verbose=verbose)
         
         fig.suptitle(self.name)
