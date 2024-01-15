@@ -5,7 +5,7 @@
 Ceci est un script temporaire.
 """
 import warnings
-# import graphviz
+import graphviz
 import matplotlib.pyplot as plt
 from matplotlib import patches as MatplotPatches
 import numpy as np
@@ -487,7 +487,6 @@ class Scene(Anchor):
     
     def add_node(self, dot, parent, childs, verbose=False):
         
-        
         dot.attr('node', shape='diamond')
         parent_name = parent.name
         
@@ -533,7 +532,27 @@ class Scene(Anchor):
         dot = dot.unflatten()
         
         dot.render(name)
-       
+    
+    def _extract_coords(self, anchor, Xs, Ys):
+        
+        Xs.append(anchor.x)
+        Ys.append(anchor.y)
+        if anchor.childs:
+            for child in anchor.childs:
+                self._extract_coords(child, Xs, Ys)
+
+        return Xs, Ys
+
+    def _gather_coords(self):
+        Xs, Ys = [self.x], [self.y] # Scene coordinates
+        
+        if self.childs is not None:
+            for child in self.childs:
+                self._extract_coords(child, Xs, Ys)
+
+        return Xs, Ys
+
+
     def _draw_point(self, ax, parent, point, **kwargs):
         
         ax.scatter(point.x + parent.x, 
@@ -551,8 +570,7 @@ class Scene(Anchor):
                    s = scatter.size, 
                    alpha = scatter.alpha,
                    **kwargs)
-        
-                
+           
     def _draw_polygon(self, ax, parent, poly, **kwargs):
         xy = [[parent.x + x, parent.y + y] for x, y in zip(poly.x, poly.y)]
         
@@ -595,8 +613,7 @@ class Scene(Anchor):
  
         ax.scatter(parent.x, parent.y, color='black', marker='+', s=100)
         ax.text(parent.x, parent.y, parent.name, fontsize=10)
-        
-        
+         
     def _draw_drawables(self, ax, parent):
 
         for d in parent.drawables:
@@ -613,7 +630,6 @@ class Scene(Anchor):
             if isinstance(d, Circle):
                 self._draw_circle(ax, parent, d)
                 
-   
     def draw_elements(self, ax, parent, childs, verbose=False):
         if parent.drawables:
                 self._draw_drawables(ax, parent)
@@ -629,9 +645,13 @@ class Scene(Anchor):
                 # Yay, recursion (bis)
                 self.draw_elements(ax, child, child.childs, verbose=verbose)
         
-    def quick_display(self, verbose=False):
-        fig, ax = plt.subplots(figsize=(8,8), ncols=1, nrows=1)
+    def quick_display(self, verbose=False, **kwargs):
+        fig, ax = plt.subplots(ncols=1, nrows=1, **kwargs)
+        Xs, Ys = self._gather_coords()
         
+        ax.set_xlim(min(Xs) - 1, max(Xs) + 1)
+        ax.set_ylim(min(Ys) - 1, max(Ys) + 1)
+
         if verbose:
             ax.scatter(self.x, self.y, color='black', marker='+', s=100)
             ax.text(self.x, self.y, self.name, fontsize=10)
@@ -641,11 +661,13 @@ class Scene(Anchor):
         self.draw_elements(ax, self, self.childs, verbose=verbose)
         
         fig.suptitle(self.name)
-        fig.tight_layout(pad=1.2)
+        fig.tight_layout(pad=0.8)
 
         plt.show()
         
-    def render(self, ax):
+    def render(self, ax = None):
+        if not ax:
+            raise ValueError('Please provide a valid Matplotlib axis.')
         self.draw_elements(ax, self, self.childs, verbose=False)
 
 
